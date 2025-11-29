@@ -1,7 +1,7 @@
-#define LED 8
-#define SENSOR_1 1
-#define SENSOR_2 21
-#define SENSOR_3 20
+#define LED 2
+#define SENSOR_1 32
+#define SENSOR_2 33
+#define SENSOR_3 34
 
 #define VERSION "2.2.0"
 
