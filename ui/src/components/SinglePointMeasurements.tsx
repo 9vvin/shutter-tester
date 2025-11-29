@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import messageHandler from "../lib/internalMessageBus";
 import { InternalMessage, InternalMessageType } from "../types/InternalMessage";
 import { SinglePointMeasurement } from "../types/Measurement";
@@ -92,9 +92,8 @@ export default function SinglePointMeasurements({
           const selectedMeasurements = measurements[speed ?? ""];
 
           return (
-            <>
+            <Fragment key={speed}>
               <SinglePointSummaryRow
-                key={speed}
                 speed={speed}
                 selected={selected}
                 onSelect={selectSpeed}
@@ -105,13 +104,14 @@ export default function SinglePointMeasurements({
               {selected
                 ? selectedMeasurements?.map((m, index) => (
                     <SinglePointDetailRow
+                      key={`${speed}-${index}`}
                       measurement={m}
                       selectedSpeed={speed}
                       onRemove={() => removeMeasurement(speed, index)}
                     />
                   ))
                 : undefined}
-            </>
+            </Fragment>
           );
         })}
       </tbody>

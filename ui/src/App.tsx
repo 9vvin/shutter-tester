@@ -2,7 +2,7 @@ import { useContext, useEffect, useState } from "react";
 import "./App.css";
 import AddSpeed from "./components/AddSpeed";
 import Conditional from "./components/Conditional";
-import Connect from "./components/Connect";
+import Connect, { ConnectionType } from "./components/Connect";
 import DirectionControl from "./components/DirectionControl";
 import ModeControl from "./components/ModeControl";
 import { Context } from "./components/SettingsContext";
@@ -14,6 +14,7 @@ import ThreePointMeasurements from "./components/ThreePointMeasurements";
 import { defaultSpeeds } from "./lib/defaults";
 import messageHandler from "./lib/internalMessageBus";
 import { useBluetooth } from "./lib/useBluetooth";
+import { useSerial } from "./lib/useSerial";
 import { formatSpeed, sortSpeeds } from "./lib/utils";
 import { InternalMessage, InternalMessageType } from "./types/InternalMessage";
 import {
@@ -74,18 +75,40 @@ function App() {
     }
   };
 
-  const { setDeviceMode, subscribe, isConnected } = useBluetooth(handleMessage);
+  const [connectionType, setConnectionType] = useState<ConnectionType | null>(null);
+
+  const bluetooth = useBluetooth(handleMessage);
+  const serial = useSerial(handleMessage);
+
+  const isConnected = bluetooth.isConnected || serial.isConnected;
 
   const setMode = (mode: ViewMode) => {
-    if ([ViewMode.THREE_POINT, ViewMode.SHUTTER_TIMING].includes(mode)) {
-      setDeviceMode(Mode.THREE_POINT);
-    } else if (mode === ViewMode.SINGLE_POINT) {
-      setDeviceMode(Mode.SINGLE_POINT);
+    const deviceMode = [ViewMode.THREE_POINT, ViewMode.SHUTTER_TIMING].includes(mode)
+      ? Mode.THREE_POINT
+      : Mode.SINGLE_POINT;
+
+    if (bluetooth.isConnected) {
+      bluetooth.setDeviceMode(deviceMode);
+    } else if (serial.isConnected) {
+      serial.setDeviceMode(deviceMode);
     }
   };
 
-  const subscribeBluetooth = () => {
-    subscribe();
+  const connectBluetooth = () => {
+    bluetooth.subscribe();
+    setConnectionType("bluetooth");
+  };
+
+  const connectUsb = () => {
+    serial.connect();
+    setConnectionType("usb");
+  };
+
+  const disconnect = () => {
+    if (serial.isConnected) {
+      serial.disconnect();
+    }
+    setConnectionType(null);
   };
 
   useEffect(() => {
@@ -120,7 +143,13 @@ function App() {
               mode={settings.mode}
             />
           ) : (
-            <Connect onClick={subscribeBluetooth} isConnected={isConnected} />
+            <Connect
+              onConnectBluetooth={connectBluetooth}
+              onConnectUsb={connectUsb}
+              onDisconnect={disconnect}
+              isConnected={isConnected}
+              connectionType={connectionType}
+            />
           )}
         </div>
         <h1>

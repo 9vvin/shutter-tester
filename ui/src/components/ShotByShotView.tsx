@@ -84,7 +84,7 @@ export default function ShotByShotView() {
           {measurements.map((m, index) => {
             const processedMeasurement = processThreePointMeasurement(m, true, sensorSeparation);
             return (
-              <tr className="measurement-detail">
+              <tr key={index} className="measurement-detail">
                 <Conditional display={settings.sensorData.display}>
                   <td>
                     {displaySpeed(

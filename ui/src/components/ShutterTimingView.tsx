@@ -72,7 +72,7 @@ export default function ShutterTimingView() {
         </thead>
         <tbody>
           {measurements.map((m, index) => (
-            <tr>
+            <tr key={index}>
               <td>{displayInterval(m.shutter1.side1)}</td>
               <td>{displayInterval(m.shutter1.side2)}</td>
               <td>{displayInterval(m.shutter1.side1 + m.shutter1.side2)}</td>

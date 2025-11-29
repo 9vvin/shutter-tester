@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import { Fragment, useContext, useEffect, useState } from "react";
 import messageHandler from "../lib/internalMessageBus";
 import { InternalMessage, InternalMessageType } from "../types/InternalMessage";
 import { ThreePointMeasurement } from "../types/Measurement";
@@ -117,9 +117,8 @@ export default function ThreePointMeasurements({
             const selectedMeasurements = measurements[speed ?? ""];
 
             return (
-              <>
+              <Fragment key={speed}>
                 <ThreePointSummaryRow
-                  key={speed}
                   speed={speed}
                   selected={selected}
                   onSelect={selectSpeed}
@@ -128,15 +127,16 @@ export default function ThreePointMeasurements({
                 />
 
                 {selected
-                  ? selectedMeasurements?.map((m) => (
+                  ? selectedMeasurements?.map((m, index) => (
                       <ThreePointDetailRow
+                        key={`${speed}-${index}`}
                         measurement={m}
                         selectedSpeed={speed}
                         onRemove={() => removeMeasurement(speed, m)}
                       />
                     ))
                   : undefined}
-              </>
+              </Fragment>
             );
           })}
         </tbody>

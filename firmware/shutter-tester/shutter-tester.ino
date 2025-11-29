@@ -6,6 +6,7 @@
 #define VERSION "2.2.0"
 
 // #define TEST_BLUETOOTH
+// #define DEBUG_SENSORS  // Uncomment to enable sensor debug output
 
 #include <BLEDevice.h>
 #include <BLEServer.h>
@@ -39,7 +40,7 @@ BLECharacteristic *pSensorCharacteristic = NULL;
 BLECharacteristic *pModeCharacteristic = NULL;
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
-char message[128];
+char message[256];  // Increased buffer size for safety
 long i = 0;
 
 #define SERVICE_UUID "42de79f1-7248-4c9b-9279-96509b8a9f5c"
@@ -209,6 +210,9 @@ void setup() {
   attachInterrupt(SENSOR_3, sensor3_isr, CHANGE);
 
   setupBluetooth();
+
+  // Output initial metadata for Serial connection
+  metadata_output();
 }
 
 bool ready() {
@@ -232,16 +236,21 @@ void three_point_output() {
                               sensor1_close_time);
   }
 
-  if (deviceConnected) {
-    long minTime = min(sensor1_open_time, sensor3_open_time);
-    sprintf(message, "{\"type\":\"three_point\",\"sensor1\":{\"open\":%ld,\"close\":%ld},\"sensor2\":{\"open\":%ld,\"close\":%ld},\"sensor3\":{\"open\":%ld,\"close\":%ld}}",
-            sensor1_open_time - minTime,
-            sensor1_close_time - minTime,
-            sensor2_open_time - minTime,
-            sensor2_close_time - minTime,
-            sensor3_open_time - minTime,
-            sensor3_close_time - minTime);
+  // Build JSON message
+  long minTime = min(sensor1_open_time, sensor3_open_time);
+  sprintf(message, "{\"type\":\"three_point\",\"sensor1\":{\"open\":%ld,\"close\":%ld},\"sensor2\":{\"open\":%ld,\"close\":%ld},\"sensor3\":{\"open\":%ld,\"close\":%ld}}",
+          sensor1_open_time - minTime,
+          sensor1_close_time - minTime,
+          sensor2_open_time - minTime,
+          sensor2_close_time - minTime,
+          sensor3_open_time - minTime,
+          sensor3_close_time - minTime);
 
+  // Output to Serial (for USB communication)
+  Serial.println(message);
+
+  // Output to BLE if connected
+  if (deviceConnected) {
     pSensorCharacteristic->setValue(message);
     pSensorCharacteristic->notify();
   }
@@ -256,10 +265,13 @@ char *getMode() {
 }
 
 void metadata_output() {
-  if (deviceConnected) {
-    long minTime = min(sensor1_open_time, sensor3_open_time);
-    sprintf(message, "{\"type\":\"metadata\",\"mode\":\"%s\",\"version\":%s}", getMode(), VERSION);
+  sprintf(message, "{\"type\":\"metadata\",\"mode\":\"%s\",\"version\":\"%s\"}", getMode(), VERSION);
 
+  // Output to Serial (for USB communication)
+  Serial.println(message);
+
+  // Output to BLE if connected
+  if (deviceConnected) {
     pSensorCharacteristic->setValue(message);
     pSensorCharacteristic->notify();
   }
@@ -268,16 +280,37 @@ void metadata_output() {
 void single_point_output() {
   print_single_point_summary(sensor2_open_time, sensor2_close_time);
 
-  if (deviceConnected) {
-    long minTime = min(sensor1_open_time, sensor3_open_time);
-    sprintf(message, "{\"type\":\"single_point\",\"sensor2\":%ld}", sensor2_close_time - sensor2_open_time);
+  // Build JSON message
+  sprintf(message, "{\"type\":\"single_point\",\"sensor2\":%ld}", sensor2_close_time - sensor2_open_time);
 
+  // Output to Serial (for USB communication)
+  Serial.println(message);
+
+  // Output to BLE if connected
+  if (deviceConnected) {
     pSensorCharacteristic->setValue(message);
     pSensorCharacteristic->notify();
   }
 }
 
 void loop() {
+  // Check for Serial commands (for USB communication)
+  if (Serial.available() > 0) {
+    String command = Serial.readStringUntil('\n');
+    command.trim();
+    if (command == "MODE:1" || command == "MODE:SINGLE") {
+      mode = SINGLE_POINT;
+      Serial.println("Setting mode to single point");
+      metadata_output();
+    } else if (command == "MODE:2" || command == "MODE:THREE") {
+      mode = THREE_POINT;
+      Serial.println("Setting mode to three point");
+      metadata_output();
+    } else if (command == "STATUS") {
+      metadata_output();
+    }
+  }
+
   if ((mode == THREE_POINT && (sensor1_state == sensor2_state == sensor3_state == WAIT_FOR_CLOSE)) || (mode == SINGLE_POINT && sensor2_state == WAIT_FOR_CLOSE)) {
     digitalWrite(LED, LOW);
   }else{
@@ -330,6 +363,17 @@ void loop() {
       sensor2_state = DONE;
       sensor3_state = DONE;
     }
+  }
+#endif
+
+#ifdef DEBUG_SENSORS
+  static unsigned long lastDebugTime = 0;
+  if (millis() - lastDebugTime > 100) {
+    lastDebugTime = millis();
+    Serial.printf("S1(GPIO%d):%d  S2(GPIO%d):%d  S3(GPIO%d):%d\n",
+      SENSOR_1, digitalRead(SENSOR_1),
+      SENSOR_2, digitalRead(SENSOR_2),
+      SENSOR_3, digitalRead(SENSOR_3));
   }
 #endif
 }
